@@ -1,0 +1,448 @@
+ 
+
+
+
+INTERNET-DRAFT                                         Ulrich Staudinger
+Intended Status: <Status, e.g.Proposed Standard>         (as a free man)
+Expires: 2014/01                                                 2013/07
+
+
+                              <HTTP-GPG> 
+                          draft-staudinger-00
+
+
+Abstract
+
+   <Abstract Text>
+
+
+Status of this Memo
+
+   This Internet-Draft is submitted to IETF in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF), its areas, and its working groups.  Note that
+   other groups may also distribute working documents as
+   Internet-Drafts.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   The list of current Internet-Drafts can be accessed at
+   http://www.ietf.org/1id-abstracts.html
+
+   The list of Internet-Draft Shadow Directories can be accessed at
+   http://www.ietf.org/shadow.html
+
+
+Copyright and License Notice
+
+   Copyright (c) 2013 IETF Trust and the persons identified as the
+   document authors. All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document. Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document. Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 1]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+
+
+Table of Contents
+
+   1  Introduction  . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1  Requirements  . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.2 Terminology  . . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  High level overview  . . . . . . . . . . . . . . . . . . . . .  3
+     2.1  Successful session example  . . . . . . . . . . . . . . . .  4
+     2.2  Unsuccessful session example  . . . . . . . . . . . . . . .  4
+     2.3 Pseudo Code  . . . . . . . . . . . . . . . . . . . . . . . .  5
+   3.  Details  . . . . . . . . . . . . . . . . . . . . . . . . . . .  6
+     3.1 Case diagram . . . . . . . . . . . . . . . . . . . . . . . .  6
+     3.2 New HTTP header fields . . . . . . . . . . . . . . . . . . .  6
+   4.  Title  . . . . . . . . . . . . . . . . . . . . . . . . . . . .  6
+   5  Security Considerations . . . . . . . . . . . . . . . . . . . .  8
+   6  IANA Considerations . . . . . . . . . . . . . . . . . . . . . .  8
+   7  References  . . . . . . . . . . . . . . . . . . . . . . . . . .  8
+     7.1  Normative References  . . . . . . . . . . . . . . . . . . .  8
+     7.2  Informative References  . . . . . . . . . . . . . . . . . .  8
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . .  8
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 2]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+1  Introduction
+
+   While there are reliable ways to implement person-to-person security
+   for email, it is striking that no such concept exists for HTTP. The
+   traditional approaches TLS and SSL are flawed as it requires people
+   to have solid technical knowledge to understand the implications of
+   their actions.  
+
+   GPG offers end user oriented, personal information security. Using
+   GPG, it is possible to reliably verify the identity of a
+   communication partner and to send securely encrypted messages to a
+   communication partner. Messages are only readable by the receiver
+   that has the decryption key. 
+
+   At present, there is no standardized approach to deploy GPG in an
+   HTTP context. This document closes this gap and defines a way how
+   communication partners must conduct GPG encrypted HTTP communication.
+     
+
+1.1  Requirements
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC2119].
+
+   The Initiator is the communication initiating party in our HTTP
+   context, it opens a connection and sends the HTTP request. 
+
+   The Responder is the request receiving party, it answers with an HTTP
+   conform response.  
+
+1.2 Terminology
+
+
+
+
+2.  High level overview
+
+   The Initiator opens a socket connection to the Responder. Upon
+   successful connection, it may send an HTTP POST request with a set
+   request header field GPG-Enclosed set to any value. If the Initiator
+   sends a POST request with the GPG-Enclosed field set, it must post a
+   multipart-form request that contains a GPG encrypted HTTP request. 
+
+   This encapsulated HTTP request may have the GPG-Required request
+   parameter set to any value. If it is present, the HTTP request must
+   contain a GPG-Identity parameter that specifies the identity of the
+   Initiator. If the the GPG-Identity parameter is set, the Initiator
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 3]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+   must include the GPG signature of the entire encapsulated request
+   except the GPG-Identity header field and its value in a GPG-Signature
+   parameter.
+
+   The Responder receives an HTTP request. If the GPG-Enclosed field is
+   set, it takes the first form data and tries to decrypt it. If it
+   cannot decipher the message, it must respond with the appropriate
+   HTTP error code. If it can decipher the message, for example as it
+   was encrypted with the Responder's public key, it will take the
+   decrypted message and will treat it like a new HTTP request. The
+   Responder may now process the encapsulated HTTP request and may
+   assemble an HTTP response. If the decrypted HTTP request contains the
+   header field GPG-Required, it must encrypt the response with the
+   public key for the identity specified in the request header field
+   GPG-Identity. If the responder does not have the public key for the
+   specified GPG-Identity, it must respond with an appropriate HTTP
+   error code. If the GPG-Identity request parameter is present, the
+   Responder must use the GPG-Signature field, strip it and verify the
+   signature over the resulting request. If the signature is not valid,
+   the Responder may reject the request and may respond with an
+   appropriate HTTP error code.  If the signature is valid, the server
+   may send the encrypted response in the HTTP response body. It must
+   include the signature of the request body. If it sends an GPG
+   encrypted response, it must set the response parameter Content-Type
+   to application/gpg-encrypted. 
+
+   The Initiator now receives the response and treats in the same way as
+   the Responder treated the Initiator's request. If the Content-Type
+   parameter of the HTTP response is set to gpg-encrypted, the Initiator
+   must decrypt it with its identity to receive the unencrypted, actual
+   response. The actual response is a full HTTP response include HTTP
+   status fields, response header fields and a GPG-Signature field. The
+   Initiator must strip the GPG-Signature field and verifies the
+   signature over the resulting HTTP response. 
+
+   The Initiator may send a HEAD request the responder with the header
+   field GPG-Identity-Probe set to any value. If the Responder receives
+   such a request, it may respond with its public identity. 
+
+
+
+
+2.1  Successful session example
+
+   Some txt 
+
+2.2  Unsuccessful session example 
+
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 4]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+2.3 Pseudo Code
+
+   The following pseudo code exemplifies the entire specification. For
+   the sake of clarity, the word Initiator is abbreviated as I. and the
+   word Responder is abbreviated as R.
+
+
+      If I. knows the R.'s public GPG Key: 
+        * I. crafts the original HTTP request
+        * I. adds additional HTTP-GPG headers as needed:
+          If I. wants to receive encrypted response:
+             * I. adds GPG-Identity header with his own identity
+        * I. encapsulates the request in a signed GPG packet
+        * I. encrypts signed packet with R.'s public key
+        * I. crafts 2nd HTTP POST request with ciphered packet 
+           as first part of a multipart/form-data request
+           and mime type gpg-encrypted
+        * I. may now calculate the signature for that package and 
+          may add the signature as the second part of the multipart/form-data
+          request
+        * I. sends 2nd HTTP POST request to the R.
+      Else:
+        If I. wants to communicate with the R.: 
+          * I. crafts an HTTP GET request
+          If I. wants to get to know the Responder's public key:
+            * I. adds header field GPG-Key-Request to the request
+          If I. wants to get the Responder's identity:
+            * I. adds header field GPG-Identity-Request
+          * I. sends the HTTP GET request and waits for response
+        Else:
+          * I. doesn't send message. 
+
+      If R. receives a request:
+        If request is NOT a HTTP POST request:
+          * R. starts an HTTP response packet
+          * R. analyses the request header:
+            If GPG-Identity-Request is present:
+              * R. adds his own public identity to response header
+            If the GPG-Key-Request is present:
+              * R. sets his own public key as the response body 
+            Else:
+              * R. processes request as usual
+              If the GPG-Identity is present: 
+                If R. has the public key for this GPG identity: 
+                  * R. encrypts entire response with public key
+                  * R. encapsulates encrypted response as the ..
+                      response body with mimetype type gpg-encrypted
+                Else:
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 5]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+                  * R. returns an HTTP error message. 
+        Else:
+          If POST request contains a gpg-encrypted form data chunk:
+            * R. tries to decrypt the request parameter
+            If R. did not successfully decrypted the request parameter:
+              * R. returns an appropriate error code. 
+          If POST request contains a signature form data chunk: 
+            * R. looks into the decrypted request paramet
+              If gpg-signature parameter is present in actual request: 
+                If gpg-identity parameter is present:  
+      	   * R. removes the gpg-signature parameter from the actual request
+                  * R calculates the checksum of the resulting request
+                  If calculated checksum matches 
+
+
+      Else:
+        Idle around. 
+
+
+
+3.  Details
+
+      Some text here
+
+3.1 Case diagram 
+
+
+
+3.2 New HTTP header fields 
+
+      some text here.
+
+
+
+
+4.  Title
+
+      <Document text>
+
+      Definitions and code {
+        line 1
+        line 2
+      }
+
+
+   Special characters examples:
+
+   The characters  , , , 
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 6]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+   However, the characters \0, \&, \%, \" are displayed.
+
+   .ti 0  is displayed in text instead of used as a directive. 
+   .\"  is displayed in document instead of being treated as a comment
+
+   C:\dir\subdir\file.ext  Shows inclusion of backslash "\".
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+<Author>                 Expires <Expiry Date>                  [Page 7]
+
+INTERNET DRAFT              <Document Title>                <Issue Date>
+
+
+5  Security Considerations
+
+   <Security considerations text>
+
+
+6  IANA Considerations
+
+   <IANA considerations text>
+
+
+7  References
+
+7.1  Normative References
+
+   [KEYWORDS] Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC1776]  Crocker, S., "The Address is the Message", RFC 1776, April
+              1 1995.
+
+   [TRUTHS]   Callon, R., "The Twelve Networking Truths", RFC 1925,
+              April 1 1996.
+
+
+7.2  Informative References
+
+   [EVILBIT]  Bellovin, S., "The Security Flag in the IPv4 Header",
+              RFC 3514, April 1 2003.
+
+   [RFC5513]  Farrel, A., "IANA Considerations for Three Letter
+              Acronyms", RFC 5513, April 1 2009.
+
+   [RFC5514]  Vyncke, E., "IPv6 over Social Networks", RFC 5514, April 1
+              2009.
+
+
+
+Authors' Addresses
+
+
+   Ulrich Staudinger
+   Steinhofhalde 3
+   6005 Luzern
+   Switzerland
+
+   EMail: ustaudinger@activequant.com 
+
+
+
+
+
+<Author>                 Expires <Expiry Date>                  [Page 8]
